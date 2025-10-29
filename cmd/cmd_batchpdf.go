@@ -13,7 +13,7 @@ var batchCmd = &cobra.Command{
 	Long:    "Converts all PDFs in folder enter path 'pdf2cbz batch PathToFolder'",
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Converted %s to %s.\n\n", args[0], batchPDF2CBZ(args[0]))
+		fmt.Printf("Conversion of %s : %s.\n\n", args[0], batchPDF2CBZ(args[0]))
 	},
 }
 

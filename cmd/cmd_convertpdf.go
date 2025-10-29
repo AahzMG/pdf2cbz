@@ -13,7 +13,7 @@ var convertCmd = &cobra.Command{
 	Long:    "Converts PDF enter path to PDF 'pdf2cbz convert myfile.pdf'",
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Converted %s to %s.\n\n", args[0], convertPDF2CBZ(args[0]))
+		fmt.Printf("Conversion of %s : %s.\n\n", args[0], convertPDF2CBZ(args[0]))
 	},
 }
 

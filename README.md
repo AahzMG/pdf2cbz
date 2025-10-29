@@ -14,7 +14,6 @@ pdf2cbz batch "path to folder containing 1 or more pdf"
 - _Fm0.
 
 ## To Do
- - in Batch validate file is PDF before converting
  - add config file to add exclusions too
  - add option to dump inages only
  - add support for epub
