@@ -11,11 +11,20 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
+type SourceFile struct {
+	Name string
+	Path string
+	Ext  string
+}
+
 func convertPDF2CBZ(source string) (result string) {
-	err := validateFile(source)
+	sourceFile, err := validateFile(source)
 	if err != nil {
 		return fmt.Sprintf("Error %s", err)
 	}
+
+	fmt.Println("sourceFile ", sourceFile.Name, " Path ", sourceFile.Path, " ext ", sourceFile.Ext)
+	return "test"
 
 	output := "tempcbz"
 	err = prepFolder(output)
@@ -23,15 +32,28 @@ func convertPDF2CBZ(source string) (result string) {
 		return fmt.Sprintf("Error %s", err)
 	}
 
-	fmt.Println("Begining Extractions...")
-	err = api.ExtractImagesFile(source, output, nil, nil)
-	if err != nil {
-		return fmt.Sprintf("Error %s", err)
+	switch sourceFile.Ext {
+	case "pdf":
+		fmt.Println("Begining PDF Extractions...")
+		err = api.ExtractImagesFile(source, output, nil, nil)
+		if err != nil {
+			return fmt.Sprintf("Error %s", err)
+		}
+	case "epub":
+		fmt.Println("Begining EPUB Extractions...")
+		err = ExtractImagesFileFromEPUB(source, output)
+		if err != nil {
+			return fmt.Sprintf("Error %s", err)
+		}
 	}
 
 	fmt.Println("Creating CBZ...")
 	filename := strings.Split(source, ".")
+	fmt.Printf("Creating filename... %s \n", source)
+	fmt.Printf("Creating filename... %s \n", filename)
+	fmt.Printf("Creating filename... %s \n", filename[0])
 	zipname := filename[0] + ".cbz"
+	fmt.Printf("Creating zipname... %s \n", zipname)
 	archive, err := os.Create(zipname)
 	if err != nil {
 		panic(err)
@@ -107,36 +129,93 @@ func imgFileFilter(file os.DirEntry) error {
 	filename := strings.Split(file.Name(), ".")
 	fileext := strings.ToLower(filename[len(filename)-1])
 	ext := []string{"png", "jpg", "jpeg", "tif", "tiff", "webp"}
-	if !contains(ext, fileext) {
+	if !inList(ext, fileext) {
 		return errors.New("incorrect file format")
 	}
 
 	return nil
 }
 
-func validateFile(file string) error {
-	filename := strings.Split(file, ".")
+func validateFile(file string) (SourceFile, error) {
+	tName := ""
+	tPath := ""
+	tExt := ""
+	if strings.Contains(file, "\\") {
+		fileSplit := strings.Split(file, "\\")
+		fileSplit2 := strings.Split(fileSplit[len(fileSplit)-1], ".")
+		tName = fileSplit2[0]
+		tExt = strings.ToLower(fileSplit2[len(fileSplit2)-1])
+		pathLen := len(file) - len(fileSplit[len(fileSplit)-1])
+		tPath = file[:pathLen]
+	} else {
+		tName = file
+		fileExtSplit := strings.Split(tName, ".")
+		tExt = strings.ToLower(fileExtSplit[len(fileExtSplit)-1])
+		tPath = ""
+	}
+
+	sourceFile := SourceFile{
+		Name: tName,
+		Path: tPath,
+		Ext:  tExt,
+	}
 
 	// Check the file to be processed is a PDF
-	if strings.ToLower(filename[len(filename)-1]) != "pdf" {
-		return errors.New("incorrect file format")
+	if sourceFile.Ext != "pdf" && sourceFile.Ext != "epub" {
+		return sourceFile, errors.New("incorrect file format")
 	}
 
 	// Test is the file can be found
 	_, err := os.Stat(file)
 	if err != nil {
-		return errors.New("file not found")
-	} else {
+		return sourceFile, errors.New("file not found")
 	}
 
-	return nil
+	return sourceFile, nil
 }
 
-func contains(list []string, term string) bool {
+func inList(list []string, term string) bool {
 	for _, item := range list {
 		if item == term {
 			return true
 		}
 	}
 	return false
+}
+
+func ExtractImagesFileFromEPUB(source string, outputDir string) error {
+	arch, err := zip.OpenReader(source)
+	if err != nil {
+		return fmt.Errorf("error %s", err)
+	}
+	defer arch.Close()
+
+	for _, zfile := range arch.File {
+		if strings.Contains(strings.ToLower(zfile.Name), "oebps/image") {
+			// fmt.Printf("Name: %s | Size: %d bytes\n", zfile.Name, zfile.UncompressedSize64)
+
+			curZFile, err := zfile.Open()
+			if err != nil {
+				return fmt.Errorf("error %s", err)
+			}
+			defer curZFile.Close()
+
+			filename := strings.Split(zfile.Name, "/")
+			outFileName := outputDir + "/" + strings.ToLower(filename[len(filename)-1])
+			// fmt.Printf("Ouput Name: %s\n", outFileName)
+			outFile, err := os.Create(outFileName)
+			if err != nil {
+				return fmt.Errorf("error %s", err)
+			}
+			defer outFile.Close()
+
+			_, err = io.Copy(outFile, curZFile)
+			if err != nil {
+				return fmt.Errorf("error %s", err)
+			}
+		}
+	}
+
+	fmt.Println("Extraction complete.")
+	return nil
 }
