@@ -12,9 +12,10 @@ import (
 )
 
 type SourceFile struct {
-	Name string
-	Path string
-	Ext  string
+	FullPath string
+	Name     string
+	Path     string
+	Ext      string
 }
 
 func convertPDF2CBZ(source string) (result string) {
@@ -23,9 +24,7 @@ func convertPDF2CBZ(source string) (result string) {
 		return fmt.Sprintf("Error %s", err)
 	}
 
-	fmt.Println("sourceFile ", sourceFile.Name, " Path ", sourceFile.Path, " ext ", sourceFile.Ext)
-	return "test"
-
+	// fmt.Println("sourceFile ", sourceFile.Name, " Path ", sourceFile.Path, " ext ", sourceFile.Ext)
 	output := "tempcbz"
 	err = prepFolder(output)
 	if err != nil {
@@ -41,18 +40,15 @@ func convertPDF2CBZ(source string) (result string) {
 		}
 	case "epub":
 		fmt.Println("Begining EPUB Extractions...")
-		err = ExtractImagesFileFromEPUB(source, output)
+		err = ExtractImagesFileFromEPUB(&sourceFile, output)
 		if err != nil {
 			return fmt.Sprintf("Error %s", err)
 		}
 	}
 
 	fmt.Println("Creating CBZ...")
-	filename := strings.Split(source, ".")
-	fmt.Printf("Creating filename... %s \n", source)
-	fmt.Printf("Creating filename... %s \n", filename)
-	fmt.Printf("Creating filename... %s \n", filename[0])
-	zipname := filename[0] + ".cbz"
+	_ = os.Mkdir("output", 0777)
+	zipname := "output\\" + sourceFile.Name + ".cbz"
 	fmt.Printf("Creating zipname... %s \n", zipname)
 	archive, err := os.Create(zipname)
 	if err != nil {
@@ -148,16 +144,23 @@ func validateFile(file string) (SourceFile, error) {
 		pathLen := len(file) - len(fileSplit[len(fileSplit)-1])
 		tPath = file[:pathLen]
 	} else {
-		tName = file
-		fileExtSplit := strings.Split(tName, ".")
+		fileExtSplit := strings.Split(file, ".")
 		tExt = strings.ToLower(fileExtSplit[len(fileExtSplit)-1])
+		nameLen := len(file) - (len(tExt) + 1)
+		tName = file[:nameLen]
 		tPath = ""
 	}
 
+	// fmt.Printf("Creating FullPath... %s \n", file)
+	// fmt.Printf("Creating Path... %s \n", tPath)
+	// fmt.Printf("Creating Name... %s \n", tName)
+	// fmt.Printf("Creating Ext... %s \n", tExt)
+
 	sourceFile := SourceFile{
-		Name: tName,
-		Path: tPath,
-		Ext:  tExt,
+		FullPath: file,
+		Name:     tName,
+		Path:     tPath,
+		Ext:      tExt,
 	}
 
 	// Check the file to be processed is a PDF
@@ -183,26 +186,24 @@ func inList(list []string, term string) bool {
 	return false
 }
 
-func ExtractImagesFileFromEPUB(source string, outputDir string) error {
-	arch, err := zip.OpenReader(source)
+func ExtractImagesFileFromEPUB(sourceFile *SourceFile, outputDir string) error {
+	arch, err := zip.OpenReader(sourceFile.FullPath)
 	if err != nil {
-		return fmt.Errorf("error %s", err)
+		return fmt.Errorf("OpenReader error %s", err)
 	}
 	defer arch.Close()
 
 	for _, zfile := range arch.File {
-		if strings.Contains(strings.ToLower(zfile.Name), "oebps/image") {
+		if strings.Contains(strings.ToLower(zfile.Name), "oebps/image") && zfile.UncompressedSize64 > 0 {
 			// fmt.Printf("Name: %s | Size: %d bytes\n", zfile.Name, zfile.UncompressedSize64)
-
 			curZFile, err := zfile.Open()
 			if err != nil {
-				return fmt.Errorf("error %s", err)
+				return fmt.Errorf("open zfile error %s", err)
 			}
 			defer curZFile.Close()
 
 			filename := strings.Split(zfile.Name, "/")
 			outFileName := outputDir + "/" + strings.ToLower(filename[len(filename)-1])
-			// fmt.Printf("Ouput Name: %s\n", outFileName)
 			outFile, err := os.Create(outFileName)
 			if err != nil {
 				return fmt.Errorf("error %s", err)

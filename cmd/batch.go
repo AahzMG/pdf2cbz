@@ -15,7 +15,7 @@ func batchPDF2CBZ(source string) (result string) {
 	}
 
 	for _, file := range files {
-		filepath := source + "/" + file.Name()
+		filepath := source + "\\" + file.Name()
 		res := convertPDF2CBZ(filepath)
 		fmt.Println("Processed ", res)
 	}

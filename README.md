@@ -16,7 +16,6 @@ pdf2cbz batch "path to folder containing 1 or more pdf"
 ## To Do
  - add config file to add exclusions too
  - add option to dump inages only
- - add support for epub
  - add better help text
 
 ## Releases
